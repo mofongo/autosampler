@@ -31,10 +31,11 @@ engine.name="SimpleDelay"
 local function record_new_segment()
   -- Get the current time in seconds since Norns started (or a relevant timestamp)
   local current_time = util.time() -- Norns provides util.time() for this purpose
-
+  softcut.buffer_clear()
+  softcut.position(1, 0) -- Reset the playhead position to the start
   -- Start recording to the buffer for voice 1
-  softcut.rec(1,1)    -- Start recording at the current playhead position for voice 1
-
+  softcut.rec(1,1)    -- Start recording for voice 1
+  counter:start()     -- Start the metro to call stop_recording after a delay
   -- Store the start time of the new recording
 --  table.insert(record_times, current_time)
 
@@ -42,7 +43,9 @@ local function record_new_segment()
 end
 
 local function stop_recording()
-  softcut.rec(voice, 0)     -- Start recording at the current playhead position for voice 1
+  softcut.rec(1, 0)  -- Stop recording for voice 1
+  -- counter:stop() -- Not strictly necessary for a metro with count=1, as it stops automatically.
+                     -- Keeping it is harmless and can be good practice if count might change.
 end
 ---
 
@@ -58,18 +61,32 @@ local m
 
 function init()
   print("Script initialized. Waiting for onsets...")
-
+  print("testing git")
+  counter = metro.init(stop_recording, 1, 1) -- Call stop_recording after 1 second, once.
 	engine.threshold(0.01)
-
+  p = poll.set("amp_in_l")
+--  p.callback = function(val) print("in > "..string.format("%.2f",val)) end
+  p.callback = function(val) 
+   if val > 0.02 then triggerEvent() end
+   end
+  p:start()
   -- -- Initialize and configure the metro for periodic onset checks
-  counter = metro.init(record_new_segment,0.5,-1) -- arguments are (event, time, count)
-  counter:start()
-  -- reset_counter = metro.init(reset_buffer,5,-1) -- arguments are (event, time, count)
-  -- reset_counter:start()
-  randomize_reset_counter = metro.init(reset_buffer,math.random(1,2),-1) -- arguments are (event, time, count)
-  randomize_reset_counter:start()
+  -- counter = metro.init(record_new_segment,0.5,-1) -- arguments are (event, time, count)
+  -- counter:start()
+  -- -- reset_counter = metro.init(reset_buffer,5,-1) -- arguments are (event, time, count)
+  -- -- reset_counter:start()
+  -- randomize_reset_counter = metro.init(reset_buffer,math.random(1,2),-1) -- arguments are (event, time, count)
+  -- randomize_reset_counter:start()
 end
-
+function triggerEvent()
+  local current_time = util.time() -- Get the current time in seconds
+  record_new_segment()
+  if current_time - last_onset_time >= onset_min_interval then
+    last_onset_time = current_time
+    print("Onset detected at: " .. current_time .. " seconds")
+   -- record_new_segment() -- Call the function to record a new segment
+  end
+end
 function reset_buffer()
   -- print("Resetting buffer...")
    softcut.buffer_clear()
@@ -128,4 +145,3 @@ function redraw()
   screen.text_center("Autosampler running")
   screen.update()
 end
-
