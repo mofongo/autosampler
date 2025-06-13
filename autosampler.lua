@@ -7,77 +7,58 @@ softcut.level(1,1.0)
 softcut.rate(1,1.0)
 softcut.loop(1,1)
 softcut.loop_start(1,1)
-softcut.loop_end(1,0.5)
+softcut.loop_end(1,0.7)
 softcut.position(1,1)
 softcut.play(1,1)
+softcut.fade_time(1, 0.1) 
  -- set input rec level: input channel, voice, level
 softcut.level_input_cut(1,1,1.0)
 softcut.level_input_cut(2,1,1.0)
--- set voice 1 record level 
 softcut.rec_level(1,1)
--- set voice 1 pre level
 softcut.pre_level(1,1)
--- set record state of voice 1 to 1
- -- -- osc input
-osc.event = osc_in
+softcut.level_slew_time(1,0.5)
 
-engine.name="SimpleDelay"
-
--- testing git
-
-
-
--- Function to record a new audio segment
 local function record_new_segment()
-  -- Get the current time in seconds since Norns started (or a relevant timestamp)
-  local current_time = util.time() -- Norns provides util.time() for this purpose
+  softcut.level_input_cut (1, 1, 0)
+  softcut.level_input_cut (2, 1, 0)
+  softcut.level_input_cut (1, 1, 1)
+  softcut.level_input_cut (2, 1, 1)
   softcut.buffer_clear()
   softcut.position(1, 0) -- Reset the playhead position to the start
-  -- Start recording to the buffer for voice 1
   softcut.rec(1,1)    -- Start recording for voice 1
   counter:start()     -- Start the metro to call stop_recording after a delay
-  -- Store the start time of the new recording
---  table.insert(record_times, current_time)
-
-  --print("New audio segment recorded at: " .. current_time .. " seconds")
 end
 
 local function stop_recording()
   softcut.rec(1, 0)  -- Stop recording for voice 1
-  -- counter:stop() -- Not strictly necessary for a metro with count=1, as it stops automatically.
-                     -- Keeping it is harmless and can be good practice if count might change.
 end
----
+
+function timer()
+  m = metro.init(randomize_voice1_pan_on_loop_start, 5, 1) -- Call randomize_voice1_pan_on_loop_start after 1 second()
+  m:start()
+end
 
 
-
-
--- Variables for simulating onset detection
-local last_onset_time = 0
-local onset_min_interval = 1 -- Minimum time between onsets in seconds
+local function randomize_voice1_pan_on_loop_start()
+  -- local new_pan = (math.random() * 2) - 1
+  local new_pan = (math.random(0, 1) * 2) - 1
+  softcut.pan(1, new_pan)
+  print(string.format("Softcut voice 1 pan randomized to: %.2f (on loop start)", new_pan))
+end
 
 -- Declare the metro variable outside init so it's accessible for stopping/starting if needed
 local m
 
 function init()
   print("Script initialized. Waiting for onsets...")
-  print("testing git")
   counter = metro.init(stop_recording, 1, 1) -- Call stop_recording after 1 second, once.
-	engine.threshold(0.01)
   p = poll.set("amp_in_l")
---  p.callback = function(val) print("in > "..string.format("%.2f",val)) end
   p.callback = function(val) 
    if val > 0.02 then triggerEvent() end
-   end
+  end
   p:start()
-  -- -- Initialize and configure the metro for periodic onset checks
-  -- counter = metro.init(record_new_segment,0.5,-1) -- arguments are (event, time, count)
-  -- counter:start()
-  -- -- reset_counter = metro.init(reset_buffer,5,-1) -- arguments are (event, time, count)
-  -- -- reset_counter:start()
-  -- randomize_reset_counter = metro.init(reset_buffer,math.random(1,2),-1) -- arguments are (event, time, count)
-  -- randomize_reset_counter:start()
 end
+
 function triggerEvent()
   local current_time = util.time() -- Get the current time in seconds
   record_new_segment()
@@ -87,29 +68,7 @@ function triggerEvent()
    -- record_new_segment() -- Call the function to record a new segment
   end
 end
-function reset_buffer()
-  -- print("Resetting buffer...")
-   softcut.buffer_clear()
-   softcut.position(1, 0) -- Reset the playhead position to the start
-  -- print("Buffer reset complete.")
- end
 
-
-function osc_in(path, args, from)
-  if path == "onset" then
-    print("Onset detected!")
-    print("incoming signal = "..val)
--- tape_rec(i)
-  end
-  redraw()
-end
-
-function onset()
-  print("Onset detected!")
-  record_new_segment()
-end
-
--- To view the recorded times (e.g., when the script stops or on demand)
 function cleanup()
   if m then
     m.stop() -- Stop the metro when the script cleans up
@@ -119,24 +78,6 @@ function cleanup()
     print("- " .. time .. " seconds")
   end
 end
-
----
-
-function save_record_times_to_file(filename)
-  local file = io.open(_ENV.norns.script.data_path .. "/" .. filename, "w")
-  if file then
-    for i, time in ipairs(record_times) do
-      file:write(string.format("%.3f\n", time))
-    end
-    file:close()
-    print("Recorded times saved to: " .. _ENV.norns.script.data_path .. "/" .. filename)
-  else
-    print("Error: Could not open file for saving.")
-  end
-end
-
-
-
 
 
 function redraw()
