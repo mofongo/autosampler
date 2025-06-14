@@ -6,7 +6,8 @@ There are no visuals yet.
 
 TODO's
 1. Add sync
-2. add function do identify amp difference which can then be used for tempo sync, if tempo is below a certain threshhold that could change the division of the tap tempo trigger. It could be an approximation of the initial detected tempo.
+2. Add function do identify amp difference which can then be used for tempo sync, if tempo is below a certain threshhold that could change the division of the tap tempo trigger. It could be an approximation of the initial detected tempo.
 3. Add LFO to control softcut amp
-4. Screen design
-5. Try https://monome.org/docs/norns/reference/lib/timeline
+4. add dynamic speed/pitch changes
+5. Screen design
+6. Try https://monome.org/docs/norns/reference/lib/timeline
