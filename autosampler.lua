@@ -1,23 +1,31 @@
 -- Initialize Softcut for Voice 1
 audio.level_adc_cut(1)
 audio.level_eng_cut(1)
-softcut.buffer_clear()
-softcut.enable(1,1)
-softcut.buffer(1,1)
-softcut.level(1,1.0)
-softcut.rate(1,1.0)
-softcut.loop(1,1)
-softcut.loop_start(1,0)
-softcut.loop_end(1,1)
-softcut.position(1,0)
-softcut.play(1,1)
-softcut.fade_time(1, 0.1) 
- -- set input rec level: input channel, voice, level
-softcut.level_input_cut(1,1,1.0)
-softcut.level_input_cut(2,1,1.0)
-softcut.rec_level(1,1)
-softcut.pre_level(1,1)
-softcut.level_slew_time(1,0.5)
+voices = 3
+
+function init_softcut()
+  for i = 1, voices do
+    softcut.buffer_clear()
+    softcut.enable(i, 1) -- Enable voice i
+    softcut.buffer(i, i) -- Assign buffer i to voice i (assuming one buffer per voice)
+    softcut.level(i, 1.0) -- Set level for voice i
+    softcut.rate(i, 1.0) -- Set playback rate for voice i
+    softcut.loop(i, 1) -- Enable looping for voice i
+    softcut.loop_start(i, 0) -- Set loop start for voice i
+    softcut.loop_end(i, 1) -- Set loop end for voice i
+    softcut.position(i,0)
+    softcut.play(i,1)
+    softcut.fade_time(i, 0.1) 
+    -- set input rec level: input channel, voice, level
+    softcut.level_input_cut(i,1,1.0)
+    softcut.level_input_cut(i,1,1.0)
+    softcut.rec_level(i,1)
+    softcut.pre_level(i,1)
+    softcut.level_slew_time(i,1,0.5)
+  end
+end
+
+
 engine.name = 'PolyPerc'
 
 
@@ -37,20 +45,41 @@ function timer()
 end
 
 function Record_new_segment()
-  softcut.level_input_cut (1, 1, 0)
-  softcut.level_input_cut (2, 1, 0)
-  softcut.level_input_cut (1, 1, 1)
-  softcut.level_input_cut (2, 1, 1)
-  softcut.buffer_clear()
-  softcut.position(1, 0) -- Reset the playhead position to the start
-  softcut.rec(1,1)    -- Start recording for voice 1
-  counter:start()     -- Start the metro to call stop_recording after a delay
+  -- softcut.level_input_cut (1, 1, 0)
+  -- softcut.level_input_cut (2, 1, 0)
+  -- softcut.level_input_cut (1, 1, 1)
+  -- softcut.level_input_cut (2, 1, 1)
+  -- softcut.buffer_clear()
+  -- softcut.position(1, 0) -- Reset the playhead position to the start
+  -- softcut.rec(1,1)    -- Start recording for voice 1
+  -- counter:start()     -- Start the metro to call stop_recording after a delay
   local current_time = util.time() -- Get the current time in seconds
   -- if current_time - last_onset_time >= onset_min_interval then
   --   last_onset_time = current_time
   --   print("Onset detected at: " .. current_time .. " seconds")
   --  -- record_new_segment() -- Call the function to record a new segment
   -- end
+local chosen_voice = voices
+  print("Record_new_segment: chosen_voice = " .. chosen_voice)
+
+  -- Ensure input routing is active for the chosen voice (can be redundant if always on from init)
+  softcut.level_input_cut (1, chosen_voice, 0) -- Briefly set to 0
+  softcut.level_input_cut (2, chosen_voice, 0)
+  softcut.level_input_cut (1, chosen_voice, 1.0) -- Set to 1 for recording
+  softcut.level_input_cut (2, chosen_voice, 1.0)
+
+  softcut.buffer_clear(chosen_voice) -- Clear the specific buffer for the chosen voice
+  softcut.position(chosen_voice, 0) -- Reset the playhead position to the start for the chosen voice
+  softcut.rec(chosen_voice, 1)    -- Start recording for the chosen_voice
+
+  -- Configure and start the metro to stop recording for the chosen_voice
+  if counter then
+    counter.event = function()
+      softcut.rec(chosen_voice, 0)
+      print(string.format("Stopped recording voice %d into buffer %d.", chosen_voice, chosen_voice))
+    end
+    counter:start()     -- Start the metro (time and count are preset in init)
+  end
 end
 
 local function randomize_voice1_pan_on_loop_start()
@@ -91,6 +120,7 @@ function synth_trigger()
 end
 
 function init()
+  init_softcut()
   print("Script initialized. Waiting for onsets...")
   counter = metro.init(stop_recording, 1, 1) -- Call stop_recording after 1 second, once.
   p = poll.set("amp_in_l")
